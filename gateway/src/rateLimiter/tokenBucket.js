@@ -1,4 +1,4 @@
-import redis from '../utils/redis.js';
+import redis from "../../../common/redis.js";
 //🪣
 const luaScript = `
 local key = KEYS[1]

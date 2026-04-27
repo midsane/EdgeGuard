@@ -1,3 +1,3 @@
 import { processEvents } from './src/consumers/eventConsumer.js';
 
-processEvents();
+processEvents().catch(console.error);

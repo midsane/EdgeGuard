@@ -1,4 +1,4 @@
-import redis from '../utils/redis.js';
+import redis from "../../../common/redis.js";
 
 // For failure isolation, we can set a timeout for the pushEvent function. 
 // If it takes too long, we can log the error and move on 
