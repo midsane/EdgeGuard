@@ -7,7 +7,6 @@
 //       'BLOCK', 0,
 //       'STREAMS', 'events_stream', '$'
 //     );
-
 //     if (data) {
 //       const [, messages] = data[0];
 
