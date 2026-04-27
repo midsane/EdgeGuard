@@ -8,8 +8,7 @@ export default async function (fastify, opts) {
     async (req, reply) => {
       const tenantId = req.headers['x-tenant-id'] || 'default';
 
-      await pushEvent(tenantId, "success");
-
+      pushEvent(tenantId, "success");
       return { success: true };
     }
   );
