@@ -15,11 +15,11 @@ export let options = {
 };
 
 export default function () {
-  const selectedPort = Math.floor(Math.random() * 3) + 3000;
+  const selectedPort = Math.floor(Math.random() * 6) + 3000;
   const res = http.get(`http://localhost:${selectedPort}/api`, {
     headers: {
       'x-tenant-id': 'tenant-' + Math.floor(Math.random() * 300),
-      'x-user-id': 'user-'+ Math.floor(Math.random() * 10),
+      'x-user-id': 'user-' + Math.floor(Math.random() * 10),
     },
   });
 

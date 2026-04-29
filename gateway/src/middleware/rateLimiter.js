@@ -2,7 +2,7 @@ import {
   getBucket,
   consumeLocal,
   shouldPrefetch,
-  startFetch,
+  tryStartFetch,
   finishFetch
 } from '../rateLimiter/localTokenCache.js';
 
@@ -18,14 +18,13 @@ export default async function rateLimiter(req, reply) {
 
   if (consumeLocal(bucket)) {
     // trigger background refill if needed
-    if (shouldPrefetch(bucket)) {
-      startFetch(bucket);
+    if (shouldPrefetch(bucket) && tryStartFetch(bucket)) {
 
       // async prefetch (no await)
       checkRateLimit(key, 100, 5, tenantId)
         .then(({ allowed }) => {
           if (allowed) {
-            finishFetch(bucket, 10); // lease
+            finishFetch(bucket, 20); // lease
           } else {
             bucket.isFetching = false;
           }
@@ -50,5 +49,5 @@ export default async function rateLimiter(req, reply) {
   }
 
   // refill after sync
-  finishFetch(bucket, 10);
+  finishFetch(bucket, 20);
 }

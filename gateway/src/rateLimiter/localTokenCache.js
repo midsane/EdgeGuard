@@ -38,12 +38,15 @@ export function shouldPrefetch(bucket) {
   return bucket.tokens <= PREFETCH_THRESHOLD && !bucket.isFetching;
 }
 
-export function startFetch(bucket) {
+export function tryStartFetch(bucket) {
+  //locking to avoid race condition, avoiding multiple concurrent req from prefetching
+  if (bucket.isFetching) return false;
   bucket.isFetching = true;
+  return true;
 }
 
 export function finishFetch(bucket, leasedTokens) {
-  bucket.tokens += leasedTokens;
+  bucket.tokens = Math.min(bucket.tokens + leasedTokens, 30);
   bucket.lastSync = Date.now();
   bucket.isFetching = false;
 }
