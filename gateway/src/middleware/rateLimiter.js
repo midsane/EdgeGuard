@@ -24,7 +24,7 @@ export default async function rateLimiter(req, reply) {
       checkRateLimit(key, 100, 5, tenantId)
         .then(({ allowed }) => {
           if (allowed) {
-            finishFetch(bucket, 20); // lease
+            finishFetch(bucket, 40); // lease
           } else {
             bucket.isFetching = false;
           }
@@ -49,5 +49,5 @@ export default async function rateLimiter(req, reply) {
   }
 
   // refill after sync
-  finishFetch(bucket, 20);
+  finishFetch(bucket, 40);
 }

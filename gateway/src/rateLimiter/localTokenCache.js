@@ -46,7 +46,7 @@ export function tryStartFetch(bucket) {
 }
 
 export function finishFetch(bucket, leasedTokens) {
-  bucket.tokens = Math.min(bucket.tokens + leasedTokens, 30);
+  bucket.tokens = Math.min(bucket.tokens + leasedTokens, 50);
   bucket.lastSync = Date.now();
   bucket.isFetching = false;
 }

@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import Fastify from 'fastify';
 import apiRoutes from './src/routes/api.js';
 import debugRoutes from './src/routes/debug.js';
