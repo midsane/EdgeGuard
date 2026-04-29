@@ -1,28 +1,54 @@
-import { getBucket, consumeLocal, refillLocal } from '../rateLimiter/localTokenCache.js';
+import {
+  getBucket,
+  consumeLocal,
+  shouldPrefetch,
+  startFetch,
+  finishFetch
+} from '../rateLimiter/localTokenCache.js';
+
 import { checkRateLimit } from '../rateLimiter/tokenBucket.js';
+
 export default async function rateLimiter(req, reply) {
   const tenantId = req.headers['x-tenant-id'] || 'default';
   const userId = req.headers['x-user-id'] || 'anon';
+
   const key = `rate_limit:${tenantId}:${userId}`;
+
   const bucket = getBucket(key);
 
-  //check if allowed in local cache
   if (consumeLocal(bucket)) {
+    // trigger background refill if needed
+    if (shouldPrefetch(bucket)) {
+      startFetch(bucket);
+
+      // async prefetch (no await)
+      checkRateLimit(key, 100, 5, tenantId)
+        .then(({ allowed }) => {
+          if (allowed) {
+            finishFetch(bucket, 10); // lease
+          } else {
+            bucket.isFetching = false;
+          }
+        })
+        .catch(() => {
+          bucket.isFetching = false;
+        });
+    }
+
     return;
   }
 
-  const { allowed, latency } = await checkRateLimit(key, 100, 5, tenantId);
-  reply.header('X-RateLimit-Latency', latency);
+  const { allowed } = await checkRateLimit(
+    key,
+    100,
+    5,
+    tenantId
+  );
 
   if (!allowed) {
-    return reply
-      .code(429)
-      .send({ error: 'Rate limit exceeded', redisLatency: latency });
+    return reply.code(429).send({ error: 'Rate limit exceeded' });
   }
 
-  refillLocal(bucket, 10); // lease 10 tokens
-
-  // attach debug info
-  req.rateLimitMeta = { latency };
+  // refill after sync
+  finishFetch(bucket, 10);
 }
-

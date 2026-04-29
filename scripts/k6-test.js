@@ -8,8 +8,8 @@ const rateLimitedCount = new Counter('rate_limited_requests');
 export let options = {
   stages: [
     { duration: '20s', target: 400 },
-    { duration: '40s', target: 900 },
-    { duration: '40s', target: 1400 },
+    { duration: '40s', target: 800 },
+    { duration: '40s', target: 1000 },
     { duration: '20s', target: 0 },
   ],
 };
@@ -19,7 +19,7 @@ export default function () {
   const res = http.get(`http://localhost:${selectedPort}/api`, {
     headers: {
       'x-tenant-id': 'tenant-' + Math.floor(Math.random() * 300),
-      'x-user-id': 'user-1'
+      'x-user-id': 'user-'+ Math.floor(Math.random() * 10),
     },
   });
 
