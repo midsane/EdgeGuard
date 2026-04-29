@@ -2,3 +2,4 @@ node_modules
 learn.txt
 questions.txt
 deployscript.sh
+.env
