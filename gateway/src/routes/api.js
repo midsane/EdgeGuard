@@ -7,7 +7,6 @@ export default async function (fastify, opts) {
     { preHandler: rateLimiter },
     async (req, reply) => {
       const tenantId = req.headers['x-tenant-id'] || 'default';
-
       pushEvent(tenantId, "success");
       return { success: true };
     }

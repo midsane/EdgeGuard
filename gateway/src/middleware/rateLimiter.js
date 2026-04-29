@@ -6,9 +6,9 @@ export default async function rateLimiter(req, reply) {
 
   const key = `rate_limit:${tenantId}:${userId}`;
 
-  console.log(`Checking rate limit for key: ${key}`);
+  // console.log(`Checking rate limit for key: ${key}`);
 
-  const { allowed, latency } = await checkRateLimit(key, 100, 5);
+  const { allowed, latency } = await checkRateLimit(key, 100, 5, tenantId);
   reply.header('X-RateLimit-Latency', latency);
 
   if (!allowed) {

@@ -1,4 +1,4 @@
-import redis from "../../../common/redis.js";
+import { getRedisClient } from "../utils/getRedisClient.js";
 //🪣
 const luaScript = `
 local key = KEYS[1]
@@ -38,7 +38,8 @@ redis.call("EXPIRE", key, 60)
 return allowed and 1 or 0
 `;
 
-export async function checkRateLimit(key, capacity, refillRate) {
+export async function checkRateLimit(key, capacity, refillRate, tenantId) {
+  const redis = getRedisClient(tenantId);
   const now = Math.floor(Date.now() / 1000);
 
   const start = Date.now();

@@ -22,41 +22,39 @@
 //     }
 //   }
 // }
-
-import redis from '../../../common/redis.js'
-import { incrementMetric } from '../services/metricService.js'
+import redisNodes from '../../../common/redisPool.js';
+import { incrementMetric } from '../services/metricService.js';
 
 const STREAM = 'events_stream';
 const GROUP = 'event_group';
 const CONSUMER = 'consumer_1';
 
 async function initGroup() {
-  try {
-    await redis.xgroup(
-      'CREATE',
-      STREAM,
-      GROUP,
-      '0',
-      'MKSTREAM'
-    );
-    console.log('✅ Consumer group created');
-  } catch (err) {
-    if (!err.message.includes('BUSYGROUP')) {
-      throw err;
+  for (const redis of redisNodes) {
+    try {
+      await redis.xgroup(
+        'CREATE',
+        STREAM,
+        GROUP,
+        '0',
+        'MKSTREAM'
+      );
+    } catch (err) {
+      if (!err.message.includes('BUSYGROUP')) {
+        console.error(err);
+      }
     }
   }
 }
 
-export async function processEvents() {
-  await initGroup();
-
-  console.log('🚀 Worker started');
+async function processShard(redis, shardId) {
+  console.log(`🚀 Worker started for shard ${shardId}`);
 
   while (true) {
     const data = await redis.xreadgroup(
       'GROUP',
       GROUP,
-      CONSUMER,
+      `${CONSUMER}_${shardId}`, // unique consumer per shard
       'BLOCK',
       5000,
       'COUNT',
@@ -78,16 +76,23 @@ export async function processEvents() {
       try {
         await incrementMetric(tenantId);
 
-        // ACK after success
         await redis.xack(STREAM, GROUP, id);
 
       } catch (err) {
-        console.error('Worker error:', err);
+        console.error(`Worker error on shard ${shardId}:`, err);
       }
     }
   }
 }
 
+export async function processEvents() {
+  await initGroup();
+
+  // 🔥 start one worker per shard
+  redisNodes.forEach((redis, index) => {
+    processShard(redis, index);
+  });
+}
 
 /*
 Why Streams over Pub/Sub?

@@ -7,9 +7,9 @@ const rateLimitedCount = new Counter('rate_limited_requests');
 
 export let options = {
   stages: [
-    { duration: '20s', target: 300 },
-    { duration: '40s', target: 800 },   // 🔥 increase
-    { duration: '40s', target: 1200 },  // 🔥 push harder
+    { duration: '20s', target: 400 },
+    { duration: '40s', target: 900 },
+    { duration: '40s', target: 1400 },
     { duration: '20s', target: 0 },
   ],
 };
@@ -18,12 +18,11 @@ export default function () {
   const selectedPort = Math.floor(Math.random() * 3) + 3000;
   const res = http.get(`http://localhost:${selectedPort}/api`, {
     headers: {
-      'x-tenant-id': 'tenant1',
-      'x-user-id': 'user-1'// hot key
+      'x-tenant-id': 'tenant-' + Math.floor(Math.random() * 300),
+      'x-user-id': 'user-1'
     },
   });
 
-  // classify responses
   if (res.status === 200) {
     successCount.add(1);
   } else if (res.status === 429) {

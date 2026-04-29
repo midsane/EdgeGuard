@@ -1,4 +1,4 @@
-import redis from "../../../common/redis.js";
+import { getRedisClient } from "../utils/getRedisClient.js";
 
 // For failure isolation, we can set a timeout for the pushEvent function. 
 // If it takes too long, we can log the error and move on 
@@ -24,18 +24,16 @@ let nextAttemptTime = 0;
 export async function pushEvent(tenantId, status) {
   if (cbState === 'OPEN') {
     if (Date.now() > nextAttemptTime) {
-      // Time has passed, let's test if Redis is back up
       cbState = 'HALF_OPEN';
     } else {
-      // Circuit is still open, fail fast and skip the Redis call
       return;
     }
   }
-
+  const redis = getRedisClient(tenantId);
   try {
     const result = await withTimeout(
       redis.xadd('events_stream', '*', 'tenant', tenantId, 'status', status),
-      50 // ms
+      50 
     );
 
     if (cbState === 'HALF_OPEN') {
