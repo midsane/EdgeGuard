@@ -1,12 +1,16 @@
+//not needed anymore, since we have offloaded this to evenBuffer, 
+// changing stream writes for every req
+//to batch writes in eventBuffer, which is more efficient.
+
 // import { getRedisClient } from "../utils/getRedisClient.js";
 
 // function withTimeout(promise, ms) {
-//   return Promise.race([
-//     promise,
-//     new Promise((_, reject) =>
-//       setTimeout(() => reject(new Error("Timeout")), ms)
-//     )
-//   ]);
+//     return Promise.race([
+//         promise,
+//         new Promise((_, reject) =>
+//             setTimeout(() => reject(new Error("Timeout")), ms)
+//         )
+//     ]);
 // }
 
 // const FAILURE_THRESHOLD = 3;
@@ -17,46 +21,46 @@
 // let nextAttemptTime = 0;
 
 // export async function pushEvent(tenantId, status) {
-//   // shard stream by tenant (prevents hot shard)
-//   const streamKey = `events_stream:${tenantId}`;
+//     // shard stream by tenant (prevents hot shard)
+//     const streamKey = `events_stream:${tenantId}`;
 
-//   // Circuit breaker check
-//   if (cbState === 'OPEN') {
-//     if (Date.now() > nextAttemptTime) {
-//       cbState = 'HALF_OPEN';
-//     } else {
-//       return;
-//     }
-//   }
-
-//   const redis = getRedisClient();
-
-//   try {
-//     const result = await withTimeout(
-//       redis.xadd(streamKey, '*', 'tenant', tenantId, 'status', status),
-//       30 // tighter timeout → less event loop blocking
-//     );
-
-//     if (cbState === 'HALF_OPEN') {
-//       console.log("Redis recovered. Circuit CLOSED.");
+//     // Circuit breaker check
+//     if (cbState === 'OPEN') {
+//         if (Date.now() > nextAttemptTime) {
+//             cbState = 'HALF_OPEN';
+//         } else {
+//             return;
+//         }
 //     }
 
-//     cbState = 'CLOSED';
-//     failureCount = 0;
+//     const redis = getRedisClient();
 
-//     return result;
+//     try {
+//         const result = await withTimeout(
+//             redis.xadd(streamKey, '*', 'tenant', tenantId, 'status', status),
+//             30 // tighter timeout → less event loop blocking
+//         );
 
-//   } catch (error) {
-//     failureCount++;
+//         if (cbState === 'HALF_OPEN') {
+//             console.log("Redis recovered. Circuit CLOSED.");
+//         }
 
-//     console.warn(`Redis push failed (${failureCount}): ${error.message}`);
+//         cbState = 'CLOSED';
+//         failureCount = 0;
 
-//     if (failureCount >= FAILURE_THRESHOLD) {
-//       cbState = 'OPEN';
-//       nextAttemptTime = Date.now() + RESET_TIMEOUT;
-//       console.error(`Circuit OPEN for ${RESET_TIMEOUT}ms`);
+//         return result;
+
+//     } catch (error) {
+//         failureCount++;
+
+//         console.warn(`Redis push failed (${failureCount}): ${error.message}`);
+
+//         if (failureCount >= FAILURE_THRESHOLD) {
+//             cbState = 'OPEN';
+//             nextAttemptTime = Date.now() + RESET_TIMEOUT;
+//             console.error(`Circuit OPEN for ${RESET_TIMEOUT}ms`);
+//         }
+
+//         return;
 //     }
-
-//     return;
-//   }
 // }

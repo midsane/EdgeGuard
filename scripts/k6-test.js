@@ -1,7 +1,7 @@
 import http from 'k6/http';
 import { check } from 'k6';
 import { Counter } from 'k6/metrics';
-const BASE_URL = 'http://ec2-52-66-225-251.ap-south-1.compute.amazonaws.com';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 
 const successCount = new Counter('success_requests');
 const rateLimitedCount = new Counter('rate_limited_requests');

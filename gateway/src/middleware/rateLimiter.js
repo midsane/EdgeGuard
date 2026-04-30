@@ -20,20 +20,18 @@ export default async function rateLimiter(req, reply) {
   const key = `rate_limit:{${tenantId}}:${userId}`;
   const bucket = getBucket(key);
 
-  // ⚡ FAST PATH
+  //first check local token cache, and refill with token below threshold
   if (consumeLocal(bucket)) {
 
-    // 🔁 background refill
     if (shouldPrefetch(bucket) && tryStartFetch(bucket)) {
       checkRateLimit(key, CAPACITY, REFILL_RATE)
         .then(() => finishFetch(bucket, LEASE_SIZE))
         .catch(() => failFetch(bucket));
     }
-
     return;
   }
 
-  // 🔥 FALLBACK PATH (IMPORTANT — THIS FIXES YOUR SYSTEM)
+  //fallback path, have to check with redis
   try {
     const { allowed } = await checkRateLimit(key, CAPACITY, REFILL_RATE);
 
@@ -45,7 +43,6 @@ export default async function rateLimiter(req, reply) {
     return;
 
   } catch (err) {
-    // fail-open (production strategy)
     return;
   }
 }

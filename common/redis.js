@@ -13,16 +13,14 @@ export function getRedisClient() {
       },
     ],
     {
-      //  REQUIRED for AWS cluster DNS behavior
       dnsLookup: (address, callback) => callback(null, address),
 
       redisOptions: {
-        tls: {},                  // REQUIRED (you have transit encryption ON)
-        enableReadyCheck: false,  // IMPORTANT for AWS
-        maxRetriesPerRequest: 1,  // keep low for latency
+        tls: {},
+        enableReadyCheck: false,
+        maxRetriesPerRequest: 1,
       },
 
-      //  stability tuning
       slotsRefreshTimeout: 2000,
       slotsRefreshInterval: 2000,
 
@@ -30,13 +28,12 @@ export function getRedisClient() {
       retryDelayOnClusterDown: 100,
       retryDelayOnTryAgain: 100,
 
-      maxRetriesPerRequest: 2, // cluster-level retry cap
+      maxRetriesPerRequest: 2,
     }
   );
 
-  // logging (keep minimal in prod)
   cluster.on("connect", () => {
-    console.log("✅ Redis cluster connected");
+    console.log("Redis cluster connected");
   });
 
   cluster.on("error", (err) => {

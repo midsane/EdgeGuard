@@ -43,9 +43,7 @@ return allowed and 1 or 0
 
 export async function checkRateLimit(key, capacity, refillRate) {
   const redis = getRedisClient();
-
   const now = Date.now() / 1000;
-X
   const start = Date.now();
 
   try {
@@ -61,7 +59,7 @@ X
         now
       );
     } catch (error) {
-      // per-node script loading (cluster-safe)
+      // per-node script loading for cluster
       if (error.message.includes("NOSCRIPT")) {
         scriptSha = await redis.script("LOAD", luaScript);
 
@@ -88,9 +86,8 @@ X
   } catch (error) {
     // fail-safe: don’t crash request path
     console.error("RateLimiter Redis Error:", error.message);
-
     return {
-      allowed: true,   // fail-open (important design choice)
+      allowed: true,
       latency: -1
     };
   }

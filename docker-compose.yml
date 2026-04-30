@@ -1,3 +1,4 @@
+# only needed for local testing with multiple redis instances, not needed for production since we will use ElastiCache Redis Cluster (AWS)
 version: '3.8'
 
 services:

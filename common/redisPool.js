@@ -1,3 +1,8 @@
+/*Was needed to simulate multi redis nodes in local machine,
+not needed anymore since we are using redis cluster via
+ElastiCache (AWS) */
+
+
 // import Redis from 'ioredis';
 
 // const redisNodes = [
