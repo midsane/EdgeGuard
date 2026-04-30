@@ -37,9 +37,8 @@ redis.call("EXPIRE", key, 60)
 
 return allowed and 1 or 0
 `;
-
-export async function checkRateLimit(key, capacity, refillRate, tenantId) {
-  const redis = getRedisClient(tenantId);
+export async function checkRateLimit(key, capacity, refillRate) {
+  const redis = getRedisClient(); 
   const now = Math.floor(Date.now() / 1000);
 
   const start = Date.now();

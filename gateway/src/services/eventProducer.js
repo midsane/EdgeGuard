@@ -1,9 +1,5 @@
 import { getRedisClient } from "../utils/getRedisClient.js";
 
-// For failure isolation, we can set a timeout for the pushEvent function. 
-// If it takes too long, we can log the error and move on 
-// without affecting the main flow of the application.
-
 function withTimeout(promise, ms) {
   return Promise.race([
     promise,
@@ -13,15 +9,18 @@ function withTimeout(promise, ms) {
   ]);
 }
 
-// Circuit Breaker Configuration 
-const FAILURE_THRESHOLD = 3;  // Number of failures before opening the circuit
-const RESET_TIMEOUT = 5000;   // How long to stay OPEN before trying again (5 seconds)
+const FAILURE_THRESHOLD = 3;
+const RESET_TIMEOUT = 5000;
 
-let cbState = 'CLOSED';       // 'CLOSED', 'OPEN', 'HALF_OPEN'
+let cbState = 'CLOSED';
 let failureCount = 0;
 let nextAttemptTime = 0;
 
 export async function pushEvent(tenantId, status) {
+  // shard stream by tenant (prevents hot shard)
+  const streamKey = `events_stream:${tenantId}`;
+
+  // Circuit breaker check
   if (cbState === 'OPEN') {
     if (Date.now() > nextAttemptTime) {
       cbState = 'HALF_OPEN';
@@ -29,33 +28,35 @@ export async function pushEvent(tenantId, status) {
       return;
     }
   }
-  const redis = getRedisClient(tenantId);
+
+  const redis = getRedisClient();
+
   try {
     const result = await withTimeout(
-      redis.xadd('events_stream', '*', 'tenant', tenantId, 'status', status),
-      50 
+      redis.xadd(streamKey, '*', 'tenant', tenantId, 'status', status),
+      30 // tighter timeout → less event loop blocking
     );
 
     if (cbState === 'HALF_OPEN') {
-      console.log("Redis recovered. Circuit is now CLOSED.");
+      console.log("Redis recovered. Circuit CLOSED.");
     }
+
     cbState = 'CLOSED';
-    failureCount = 0; // Reset failures on a successful push
+    failureCount = 0;
 
     return result;
 
   } catch (error) {
     failureCount++;
-    console.warn(`Redis push failed (count: ${failureCount}): ${error.message}`);
 
-    // If we were testing the connection, or if we hit the failure limit
-    if (cbState === 'HALF_OPEN' || failureCount >= FAILURE_THRESHOLD) {
+    console.warn(`Redis push failed (${failureCount}): ${error.message}`);
+
+    if (failureCount >= FAILURE_THRESHOLD) {
       cbState = 'OPEN';
       nextAttemptTime = Date.now() + RESET_TIMEOUT;
-      console.error(`Circuit is now OPEN. Skipping Redis pushes for ${RESET_TIMEOUT}ms.`);
+      console.error(`Circuit OPEN for ${RESET_TIMEOUT}ms`);
     }
 
-    // Return undefined so the main application flow is unaffected
     return;
   }
 }

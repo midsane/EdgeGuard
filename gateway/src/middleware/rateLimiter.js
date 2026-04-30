@@ -8,23 +8,29 @@ import {
 
 import { checkRateLimit } from '../rateLimiter/tokenBucket.js';
 
+const CAPACITY = 100;
+const REFILL_RATE = 5;
+const LEASE_SIZE = 40;
+
 export default async function rateLimiter(req, reply) {
   const tenantId = req.headers['x-tenant-id'] || 'default';
   const userId = req.headers['x-user-id'] || 'anon';
 
-  const key = `rate_limit:${tenantId}:${userId}`;
+  // IMPORTANT: hash tag ensures same shard per tenant
+  const key = `rate_limit:{${tenantId}}:${userId}`;
 
   const bucket = getBucket(key);
 
+  // FAST PATH (no Redis hit)
   if (consumeLocal(bucket)) {
-    // trigger background refill if needed
+
+    // background refill
     if (shouldPrefetch(bucket) && tryStartFetch(bucket)) {
 
-      // async prefetch (no await)
-      checkRateLimit(key, 100, 5, tenantId)
+      checkRateLimit(key, CAPACITY, REFILL_RATE)
         .then(({ allowed }) => {
           if (allowed) {
-            finishFetch(bucket, 40); // lease
+            finishFetch(bucket, LEASE_SIZE);
           } else {
             bucket.isFetching = false;
           }
@@ -37,17 +43,17 @@ export default async function rateLimiter(req, reply) {
     return;
   }
 
+  // SLOW PATH (Redis sync)
   const { allowed } = await checkRateLimit(
     key,
-    100,
-    5,
-    tenantId
+    CAPACITY,
+    REFILL_RATE
   );
 
   if (!allowed) {
     return reply.code(429).send({ error: 'Rate limit exceeded' });
   }
 
-  // refill after sync
-  finishFetch(bucket, 40);
+  // refill local cache after successful sync
+  finishFetch(bucket, LEASE_SIZE);
 }
