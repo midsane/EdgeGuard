@@ -1,8 +1,8 @@
 const cache = new Map();
 
 const TTL = 30000; // 30 sec
-const MAX_LOCAL_TOKENS = 15000;
-const PREFETCH_THRESHOLD = 2000;
+MAX_LOCAL_TOKENS = 3000
+PREFETCH_THRESHOLD = 500
 
 export function getBucket(key) {
   let bucket = cache.get(key);
@@ -10,7 +10,7 @@ export function getBucket(key) {
 
   if (!bucket) {
     bucket = {
-      tokens: 500, // 🔥 warm start (VERY IMPORTANT)
+      tokens: 2000, // 🔥 warm start (VERY IMPORTANT)
       lastSync: now,
       isFetching: false,
     };

@@ -9,9 +9,9 @@ import {
 
 import { checkRateLimit } from '../rateLimiter/tokenBucket.js';
 
-const CAPACITY = 20000;
-const REFILL_RATE = 10000;
-const LEASE_SIZE = 5000;
+CAPACITY = 5000
+REFILL_RATE = 2000
+LEASE_SIZE = 1000
 
 export default async function rateLimiter(req, reply) {
   const tenantId = req.headers['x-tenant-id'] || 'default';
@@ -40,7 +40,7 @@ export default async function rateLimiter(req, reply) {
     if (!allowed) {
       return reply.code(429).send({ error: 'Rate limit exceeded' });
     }
-``
+
     finishFetch(bucket, LEASE_SIZE);
     return;
 
