@@ -1,12 +1,13 @@
 import { getRedisClient } from '../../../gateway/src/utils/getRedisClient.js';
 import { incrementMetric } from '../services/metricService.js';
 
+const STREAM = 'events_stream';
 const GROUP = 'event_group';
 const CONSUMER = `consumer_${process.pid}`;
 
-async function ensureGroup(redis, stream) {
+async function ensureGroup(redis) {
   try {
-    await redis.xgroup('CREATE', stream, GROUP, '0', 'MKSTREAM');
+    await redis.xgroup('CREATE', STREAM, GROUP, '0', 'MKSTREAM');
   } catch (err) {
     if (!err.message.includes('BUSYGROUP')) {
       console.error('Group init error:', err.message);
@@ -14,10 +15,8 @@ async function ensureGroup(redis, stream) {
   }
 }
 
-async function processStream(redis, tenantId) {
-  const stream = `events_stream:{${tenantId}}`;
-
-  await ensureGroup(redis, stream);
+async function processStream(redis) {
+  await ensureGroup(redis);
 
   while (true) {
     try {
@@ -28,9 +27,9 @@ async function processStream(redis, tenantId) {
         'BLOCK',
         5000,
         'COUNT',
-        10,
+        100,
         'STREAMS',
-        stream,
+        STREAM,
         '>'
       );
 
@@ -43,11 +42,12 @@ async function processStream(redis, tenantId) {
 
         try {
           await incrementMetric(tenantId);
-          await redis.xack(stream, GROUP, id);
+          await redis.xack(STREAM, GROUP, id);
         } catch (err) {
           console.error(`Processing error (${tenantId}):`, err.message);
         }
       }
+
     } catch (err) {
       console.error('Stream read error:', err.message);
     }
@@ -57,9 +57,5 @@ async function processStream(redis, tenantId) {
 export async function processEvents() {
   const redis = getRedisClient();
   console.log('Worker started (cluster mode)');
-  const tenants = Array.from({ length: 300 }, (_, i) => `tenant-${i}`);
-
-  tenants.forEach((tenantId) => {
-    processStream(redis, tenantId);
-  });
+  await processStream(redis);
 }
