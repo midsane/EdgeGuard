@@ -1,27 +1,44 @@
 import Redis from "ioredis";
 
-const redis = new Redis.Cluster(
-  [{
-    host: process.env.REDIS_HOST,
-    port: process.env.REDIS_PORT,
-    maxRetriesPerRequest: 1,
-    enableReadyCheck: true,
-  }],
-  {
-    redisOptions: {
-      tls: {
-        rejectUnauthorized: false
-      }
+let cluster;
+
+export function getRedisClient() {
+  if (cluster) return cluster;
+
+  cluster = new Redis.Cluster(
+    [
+      {
+        host: process.env.REDIS_HOST,
+        port: Number(process.env.REDIS_PORT),
+      },
+    ],
+    {
+      dnsLookup: (address, callback) => callback(null, address),
+
+      redisOptions: {
+        tls: {},                  // REQUIRED
+        enableReadyCheck: false,  // IMPORTANT
+        maxRetriesPerRequest: 1,
+      },
+
+      slotsRefreshTimeout: 2000,
+      slotsRefreshInterval: 2000,
+
+      retryDelayOnFailover: 100,
+      retryDelayOnClusterDown: 100,
+      retryDelayOnTryAgain: 100,
+
+      maxRetriesPerRequest: 2,
     }
-  }
-);
+  );
 
-redis.on("error", (err) => {
-  console.error("👀 Redis Error:", err.message);
-});
+  cluster.on("error", (err) => {
+    console.error("👀 Redis Cluster Error:", err.message);
+  });
 
-redis.on("connect", () => {
-  console.log("𝔾𝕆𝕆𝔻 𝔹𝕆𝕐 Redis connected");
-});
+  cluster.on("connect", () => {
+    console.log("Redis cluster connected");
+  });
 
-export default redis;
+  return cluster;
+}
