@@ -1,4 +1,4 @@
-import { getRedisClient } from '../../../gateway/src/utils/getRedisClient.js';
+import { getRedisClient } from '../../../common/redis.js';
 import { incrementMetric } from '../services/metricService.js';
 
 const STREAM = 'events_stream';

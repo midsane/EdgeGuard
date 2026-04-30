@@ -1,6 +1,6 @@
 import Redis from "ioredis";
 
-let cluster;
+let cluster = null;
 
 export function getRedisClient() {
   if (cluster) return cluster;
@@ -13,14 +13,16 @@ export function getRedisClient() {
       },
     ],
     {
+      //  REQUIRED for AWS cluster DNS behavior
       dnsLookup: (address, callback) => callback(null, address),
 
       redisOptions: {
-        tls: {},                  // REQUIRED
-        enableReadyCheck: false,  // IMPORTANT
-        maxRetriesPerRequest: 1,
+        tls: {},                  // REQUIRED (you have transit encryption ON)
+        enableReadyCheck: false,  // IMPORTANT for AWS
+        maxRetriesPerRequest: 1,  // keep low for latency
       },
 
+      //  stability tuning
       slotsRefreshTimeout: 2000,
       slotsRefreshInterval: 2000,
 
@@ -28,16 +30,17 @@ export function getRedisClient() {
       retryDelayOnClusterDown: 100,
       retryDelayOnTryAgain: 100,
 
-      maxRetriesPerRequest: 2,
+      maxRetriesPerRequest: 2, // cluster-level retry cap
     }
   );
 
-  cluster.on("error", (err) => {
-    console.error("👀 Redis Cluster Error:", err.message);
+  // logging (keep minimal in prod)
+  cluster.on("connect", () => {
+    console.log("✅ Redis cluster connected");
   });
 
-  cluster.on("connect", () => {
-    console.log("Redis cluster connected");
+  cluster.on("error", (err) => {
+    console.error("👀 Redis Cluster Error:", err.message);
   });
 
   return cluster;

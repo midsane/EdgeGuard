@@ -1,4 +1,4 @@
-import { getRedisClient } from "../utils/getRedisClient.js";
+import { getRedisClient } from "../../../common/redis.js";
 
 let scriptSha;
 
