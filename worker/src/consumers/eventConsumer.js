@@ -1,103 +1,65 @@
-// import redis from '../../gateway/src/utils/redis.js';
-// import { incrementMetric } from '../services/metricsService.js';
-
-// export async function processEvents() {
-//   while (true) {
-//     const data = await redis.xread(
-//       'BLOCK', 0,
-//       'STREAMS', 'events_stream', '$'
-//     );
-//     if (data) {
-//       const [, messages] = data[0];
-
-//       for (const message of messages) {
-//         const [, fields] = message;
-
-//         const tenantId = fields[1];
-
-//         await incrementMetric(tenantId);
-
-//         console.log('Processed event:', fields);
-//       }
-//     }
-//   }
-// }
-import redisNodes from '../../../common/redisPool.js';
+import { getRedisClient } from '../../../gateway/src/utils/getRedisClient.js';
 import { incrementMetric } from '../services/metricService.js';
 
-const STREAM = 'events_stream';
 const GROUP = 'event_group';
-const CONSUMER = 'consumer_1';
+const CONSUMER = `consumer_${process.pid}`;
 
-async function initGroup() {
-  for (const redis of redisNodes) {
-    try {
-      await redis.xgroup(
-        'CREATE',
-        STREAM,
-        GROUP,
-        '0',
-        'MKSTREAM'
-      );
-    } catch (err) {
-      if (!err.message.includes('BUSYGROUP')) {
-        console.error(err);
-      }
+async function ensureGroup(redis, stream) {
+  try {
+    await redis.xgroup('CREATE', stream, GROUP, '0', 'MKSTREAM');
+  } catch (err) {
+    if (!err.message.includes('BUSYGROUP')) {
+      console.error('Group init error:', err.message);
     }
   }
 }
 
-async function processShard(redis, shardId) {
-  console.log(`🚀 Worker started for shard ${shardId}`);
+async function processStream(redis, tenantId) {
+  const stream = `events_stream:{${tenantId}}`;
+
+  await ensureGroup(redis, stream);
 
   while (true) {
-    const data = await redis.xreadgroup(
-      'GROUP',
-      GROUP,
-      `${CONSUMER}_${shardId}`, // unique consumer per shard
-      'BLOCK',
-      5000,
-      'COUNT',
-      10,
-      'STREAMS',
-      STREAM,
-      '>'
-    );
+    try {
+      const data = await redis.xreadgroup(
+        'GROUP',
+        GROUP,
+        CONSUMER,
+        'BLOCK',
+        5000,
+        'COUNT',
+        10,
+        'STREAMS',
+        stream,
+        '>'
+      );
 
-    if (!data) continue;
+      if (!data) continue;
 
-    const [, messages] = data[0];
+      const [, messages] = data[0];
 
-    for (const message of messages) {
-      const [id, fields] = message;
+      for (const [id, fields] of messages) {
+        const tenantId = fields[1];
 
-      const tenantId = fields[1];
-
-      try {
-        await incrementMetric(tenantId);
-
-        await redis.xack(STREAM, GROUP, id);
-
-      } catch (err) {
-        console.error(`Worker error on shard ${shardId}:`, err);
+        try {
+          await incrementMetric(tenantId);
+          await redis.xack(stream, GROUP, id);
+        } catch (err) {
+          console.error(`Processing error (${tenantId}):`, err.message);
+        }
       }
+    } catch (err) {
+      console.error('Stream read error:', err.message);
     }
   }
 }
 
 export async function processEvents() {
-  await initGroup();
+  const redis = getRedisClient();
+  console.log('Worker started (cluster mode)');
+  const tenants = Array.from({ length: 300 }, (_, i) => `tenant-${i}`);
 
-  // 🔥 start one worker per shard
-  redisNodes.forEach((redis, index) => {
-    processShard(redis, index);
+  tenants.forEach((tenantId) => {
+    processStream(redis, tenantId);
   });
 }
-
-/*
-Why Streams over Pub/Sub?
-What happens if worker crashes?
-Why use consumer groups?
-What is ACK?
-
-*/
