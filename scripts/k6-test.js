@@ -9,17 +9,17 @@ const rateLimitedCount = new Counter('rate_limited_requests');
 
 export let options = {
   stages: [
-    { duration: '10s', target: 800 },
-    { duration: '20s', target: 1500 },
-    { duration: '20s', target: 2000 },
-    { duration: '20s', target: 0 },
+    { duration: '12s', target: 1500 },
+    { duration: '30s', target: 3500 },
+    { duration: '40s', target: 7000 },
+    { duration: '30s', target: 0 },
   ],
 };
 
 export default function () {
   const res = http.get(`${BASE_URL}/api`, {
     headers: {
-      'x-tenant-id': 'tenant-' + Math.floor(Math.random() * 5000),
+      'x-tenant-id': 'tenant-' + Math.floor(Math.random() * 8000),
       'x-user-id': 'user-' + Math.floor(Math.random() * 10),
     },
     timeout: '2s', 
@@ -34,4 +34,4 @@ check(res, {
   'status ok': (r) => r.status === 200 || r.status === 429,
   'no timeout': (r) => r.timings.duration < 2000,
 });
-}``
+}

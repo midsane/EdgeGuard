@@ -9,9 +9,9 @@ import {
 
 import { checkRateLimit } from '../rateLimiter/tokenBucket.js';
 
-const CAPACITY = 2000;
-const REFILL_RATE = 1000;
-const LEASE_SIZE = 500;
+const CAPACITY = 20000;
+const REFILL_RATE = 10000;
+const LEASE_SIZE = 5000;
 
 export default async function rateLimiter(req, reply) {
   const tenantId = req.headers['x-tenant-id'] || 'default';

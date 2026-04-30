@@ -1,8 +1,8 @@
 const cache = new Map();
 
-const TTL = 10000; // 10 sec
-const MAX_LOCAL_TOKENS = 1500;
-const PREFETCH_THRESHOLD = 200;
+const TTL = 30000; // 30 sec
+const MAX_LOCAL_TOKENS = 15000;
+const PREFETCH_THRESHOLD = 2000;
 
 export function getBucket(key) {
   let bucket = cache.get(key);
