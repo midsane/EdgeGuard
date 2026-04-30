@@ -9,7 +9,9 @@ const redis = new Redis.Cluster(
   }],
   {
     redisOptions: {
-      tls: {}
+      tls: {
+        rejectUnauthorized: false
+      }
     }
   }
 );
