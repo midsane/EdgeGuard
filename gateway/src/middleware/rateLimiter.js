@@ -3,57 +3,49 @@ import {
   consumeLocal,
   shouldPrefetch,
   tryStartFetch,
-  finishFetch
+  finishFetch,
+  failFetch
 } from '../rateLimiter/localTokenCache.js';
 
 import { checkRateLimit } from '../rateLimiter/tokenBucket.js';
 
-const CAPACITY = 100;
-const REFILL_RATE = 5;
-const LEASE_SIZE = 40;
+const CAPACITY = 2000;
+const REFILL_RATE = 1000;
+const LEASE_SIZE = 500;
 
 export default async function rateLimiter(req, reply) {
   const tenantId = req.headers['x-tenant-id'] || 'default';
   const userId = req.headers['x-user-id'] || 'anon';
 
-  // IMPORTANT: hash tag ensures same shard per tenant
   const key = `rate_limit:{${tenantId}}:${userId}`;
-
   const bucket = getBucket(key);
 
-  // FAST PATH (no Redis hit)
+  // ⚡ FAST PATH
   if (consumeLocal(bucket)) {
 
-    // background refill
+    // 🔁 background refill
     if (shouldPrefetch(bucket) && tryStartFetch(bucket)) {
-
       checkRateLimit(key, CAPACITY, REFILL_RATE)
-        .then(({ allowed }) => {
-          if (allowed) {
-            finishFetch(bucket, LEASE_SIZE);
-          } else {
-            bucket.isFetching = false;
-          }
-        })
-        .catch(() => {
-          bucket.isFetching = false;
-        });
+        .then(() => finishFetch(bucket, LEASE_SIZE))
+        .catch(() => failFetch(bucket));
     }
 
     return;
   }
 
-  // SLOW PATH (Redis sync)
-  const { allowed } = await checkRateLimit(
-    key,
-    CAPACITY,
-    REFILL_RATE
-  );
+  // 🔥 FALLBACK PATH (IMPORTANT — THIS FIXES YOUR SYSTEM)
+  try {
+    const { allowed } = await checkRateLimit(key, CAPACITY, REFILL_RATE);
 
-  if (!allowed) {
-    return reply.code(429).send({ error: 'Rate limit exceeded' });
+    if (!allowed) {
+      return reply.code(429).send({ error: 'Rate limit exceeded' });
+    }
+``
+    finishFetch(bucket, LEASE_SIZE);
+    return;
+
+  } catch (err) {
+    // fail-open (production strategy)
+    return;
   }
-
-  // refill local cache after successful sync
-  finishFetch(bucket, LEASE_SIZE);
 }

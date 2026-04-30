@@ -45,7 +45,7 @@ export async function checkRateLimit(key, capacity, refillRate) {
   const redis = getRedisClient();
 
   const now = Date.now() / 1000;
-
+X
   const start = Date.now();
 
   try {

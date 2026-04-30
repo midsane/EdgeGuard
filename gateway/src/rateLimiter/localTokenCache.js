@@ -1,26 +1,25 @@
 const cache = new Map();
 
-const LEASE_SIZE = 10;
-const PREFETCH_THRESHOLD = 3;
-const TTL = 2000;
+const TTL = 10000; // 10 sec
+const MAX_LOCAL_TOKENS = 1500;
+const PREFETCH_THRESHOLD = 200;
 
 export function getBucket(key) {
   let bucket = cache.get(key);
-
   const now = Date.now();
 
   if (!bucket) {
     bucket = {
-      tokens: 0,
-      lastSync: 0,
-      isFetching: false
+      tokens: 500, // 🔥 warm start (VERY IMPORTANT)
+      lastSync: now,
+      isFetching: false,
     };
     cache.set(key, bucket);
   }
 
   // expire stale bucket
   if (now - bucket.lastSync > TTL) {
-    bucket.tokens = 0;
+    bucket.tokens = 200; // 🔥 partial reset instead of 0
   }
 
   return bucket;
@@ -39,14 +38,20 @@ export function shouldPrefetch(bucket) {
 }
 
 export function tryStartFetch(bucket) {
-  //locking to avoid race condition, avoiding multiple concurrent req from prefetching
   if (bucket.isFetching) return false;
   bucket.isFetching = true;
   return true;
 }
 
 export function finishFetch(bucket, leasedTokens) {
-  bucket.tokens = Math.min(bucket.tokens + leasedTokens, 50);
+  bucket.tokens = Math.min(
+    bucket.tokens + leasedTokens,
+    MAX_LOCAL_TOKENS
+  );
   bucket.lastSync = Date.now();
+  bucket.isFetching = false;
+}
+
+export function failFetch(bucket) {
   bucket.isFetching = false;
 }

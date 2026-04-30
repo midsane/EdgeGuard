@@ -1,5 +1,5 @@
 import rateLimiter from '../middleware/rateLimiter.js';
-import { pushEvent } from '../services/eventProducer.js';
+import { addEvent } from '../services/eventBuffer.js';
 
 export default async function (fastify, opts) {
   fastify.get(
@@ -7,7 +7,7 @@ export default async function (fastify, opts) {
     { preHandler: rateLimiter },
     async (req, reply) => {
       const tenantId = req.headers['x-tenant-id'] || 'default';
-      pushEvent(tenantId, "success");
+      addEvent({ tenant: tenantId, status: 'success' });
       return { success: true };
     }
   );
