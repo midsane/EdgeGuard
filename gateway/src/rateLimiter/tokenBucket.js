@@ -1,5 +1,8 @@
 import { getRedisClient } from "../utils/getRedisClient.js";
-//🪣
+
+let scriptSha;
+
+// 🪣 LUA SCRIPT
 const luaScript = `
 local key = KEYS[1]
 
@@ -37,25 +40,58 @@ redis.call("EXPIRE", key, 60)
 
 return allowed and 1 or 0
 `;
+
 export async function checkRateLimit(key, capacity, refillRate) {
-  const redis = getRedisClient(); 
-  const now = Math.floor(Date.now() / 1000);
+  const redis = getRedisClient();
+
+  const now = Date.now() / 1000;
 
   const start = Date.now();
 
-  const result = await redis.eval(
-    luaScript,
-    1,
-    key,
-    capacity,
-    refillRate,
-    now
-  );
+  try {
+    let result;
 
-  const latency = Date.now() - start;
+    try {
+      result = await redis.evalsha(
+        scriptSha,
+        1,
+        key,
+        capacity,
+        refillRate,
+        now
+      );
+    } catch (error) {
+      // per-node script loading (cluster-safe)
+      if (error.message.includes("NOSCRIPT")) {
+        scriptSha = await redis.script("LOAD", luaScript);
 
-  return {
-    allowed: result === 1,
-    latency
-  };
+        result = await redis.evalsha(
+          scriptSha,
+          1,
+          key,
+          capacity,
+          refillRate,
+          now
+        );
+      } else {
+        throw error;
+      }
+    }
+
+    const latency = Date.now() - start;
+
+    return {
+      allowed: result === 1,
+      latency
+    };
+
+  } catch (error) {
+    // fail-safe: don’t crash request path
+    console.error("RateLimiter Redis Error:", error.message);
+
+    return {
+      allowed: true,   // fail-open (important design choice)
+      latency: -1
+    };
+  }
 }
